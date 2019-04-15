@@ -47,7 +47,7 @@ class { '::consul':
 ```
 On the agent(s):
 ```puppet
-class { '::consul':
+class { 'consul':
   config_hash => {
     'data_dir'   => '/opt/consul',
     'datacenter' => 'east-aws',
@@ -59,7 +59,7 @@ class { '::consul':
 ```
 Disable install and service components:
 ```puppet
-class { '::consul':
+class { 'consul':
   install_method => 'none',
   init_style     => false,
   manage_service => false,
@@ -79,7 +79,7 @@ To install and run the Web UI on the server, include `ui => true` in the
 `config_hash`. You may also want to change the `client_addr` to `0.0.0.0` from
 the default `127.0.0.1`, for example:
 ```puppet
-class { '::consul':
+class { 'consul':
   config_hash => {
     'bootstrap_expect' => 1,
     'client_addr'      => '0.0.0.0',
@@ -100,9 +100,9 @@ $aliases = ['consul', 'consul.example.com']
 # Reverse proxy for Web interface
 include 'nginx'
 
-$server_names = [$::fqdn, $aliases]
+$server_names = [$facts['fqdn'], $aliases]
 
-nginx::resource::vhost { $::fqdn:
+nginx::resource::vhost { $facts['fqdn']:
   proxy       => 'http://localhost:8500',
   server_name => $server_names,
 }
@@ -115,7 +115,7 @@ will register the service through the local consul client agent and optionally
 configure a health check to monitor its availability.
 
 ```puppet
-::consul::service { 'redis':
+consul::service { 'redis':
   checks  => [
     {
       script   => '/usr/local/bin/check_redis.py',
@@ -123,7 +123,10 @@ configure a health check to monitor its availability.
     }
   ],
   port    => 6379,
-  tags    => ['master']
+  tags    => ['master'],
+  meta    => {
+    SLA => '1'
+  }
 }
 ```
 
@@ -142,6 +145,8 @@ consul::services:
     port: 42
     tags:
       - "foo:%{::bar}"
+    meta:
+      SLA: 1
   service2:
     address: "%{::ipaddress}"
     checks:
@@ -150,12 +155,14 @@ consul::services:
     port: 43
     tags:
       - "foo:%{::baz}"
+    meta:
+      SLA: 4
 ```
 
 ## Watch Definitions
 
 ```puppet
-::consul::watch { 'my_watch':
+consul::watch { 'my_watch':
   handler     => 'handler_path',
   passingonly => true,
   service     => 'serviceName',
@@ -172,7 +179,7 @@ it easy to declare in hiera.
 ## Check Definitions
 
 ```puppet
-::consul::check { 'true_check':
+consul::check { 'true_check':
   interval => '30s',
   script   => '/bin/true',
 }
@@ -265,7 +272,7 @@ This provider allows you to manage key/value pairs. It tries to be smart in two 
 These parameters are mandatory when using `consul_key_value`:
 
 * `name` Name of the key/value object. Path in key/value store.
-* `value` value of the key. 
+* `value` value of the key.
 
 The optional parameters only need to be specified if you require changes from default behaviour.
 
@@ -284,20 +291,18 @@ Depending on the version of puppetserver deployed it may not be new enough (1.8.
 
 ## Windows Experimental Support
 
-Windows service support is provided by [NSSM](https://nssm.cc), which is expected to be installed separately. The following caveats apply:
+Windows service does no longer need [NSSM] to host the service. Consul will be installed as a native windows service using build-in sc.exe. The following caveats apply:
 
- * The user and group parameter must be different (Administrator/Administrators recommended).
- * The NSSM executable must be passed as a parameter like in the following example:
+* By defult eveything will be installed into `c:\ProgramData\Consul\` and `$consul::config_hash['data_dir']` will default point to that location, so you don't need that in your `config_hash`
+* The service user needs `logon as a service` permission to run things as a service(not yet supported by this module). therefore will `consul::manage_user` and `consul::manage_group` be default `false`.
+* consul::user will default be `NT AUTHORITY\NETWORK SERVICE` (Has by default `logon as a service` permission).
+* consul::group will default be `Administrators`
 
+Example:
 ```puppet
-class { '::consul':
-  nssm_exec   => 'C:/Program Files/nssm/nssm-2.24/win64/nssm.exe',
-  bin_dir     => 'C:/Consul',
-  user        => 'Administrator',
-  group       => 'Administrators',
+class { 'consul':
   config_hash => {
     'bootstrap_expect' => 1,
-    'data_dir'         => 'C:/Consul',
     'datacenter'       => 'dc1',
     'log_level'        => 'INFO',
     'node_name'        => 'server',
@@ -306,16 +311,16 @@ class { '::consul':
 }
 ```
 
-##Telemetry
+## Telemetry
 The Consul agent collects various runtime metrics about the performance of different libraries and subsystems. These metrics are aggregated on a ten second interval and are retained for one minute.
 
 To view this data, you must send a signal to the Consul process: on Unix, this is USR1 while on Windows it is BREAK. Once Consul receives the signal, it will dump the current telemetry information to the agent's stderr.
 
 This telemetry information can be used for debugging or otherwise getting a better view of what Consul is doing.
 
-##Usage
+Example:
 ```puppet
-class { '::consul':
+class { 'consul':
   config_hash => {
     'bootstrap_expect' => 1,
     'data_dir'         => '/opt/consul',

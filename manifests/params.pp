@@ -4,33 +4,6 @@
 # It sets variables according to platform
 #
 class consul::params {
-  $acls                  = {}
-  $archive_path          = ''  #lint:ignore:empty_string_assignment
-  $checks                = {}
-  $config_defaults       = {}
-  $config_hash           = {}
-  $config_mode           = '0664'
-  $docker_image          = 'consul'
-  $download_extension    = 'zip'
-  $download_url_base     = 'https://releases.hashicorp.com/consul/'
-  $extra_groups          = []
-  $extra_options         = ''  #lint:ignore:empty_string_assignment
-  $log_file              = '/var/log/consul'
-  $install_method        = 'url'
-  $join_wan              = false
-  $manage_service        = true
-  $package_ensure        = 'latest'
-  $package_name          = 'consul'
-  $pretty_config         = false
-  $pretty_config_indent  = 4
-  $purge_config_dir      = true
-  $restart_on_change     = true
-  $service_enable        = true
-  $service_ensure        = 'running'
-  $services              = {}
-  $service_config_hash   = {}
-  $version               = '1.2.3'
-  $watches               = {}
 
   case $facts['architecture'] {
     'x86_64', 'x64', 'amd64': { $arch = 'amd64' }
@@ -53,8 +26,6 @@ class consul::params {
     default   => '/usr/local/bin'
   }
 
-  $os = downcase($facts['kernel'])
-
   case $facts['os']['name'] {
     'windows': {
       $data_dir_mode = '0775'
@@ -62,6 +33,9 @@ class consul::params {
       $binary_mode = '0775'
       $binary_name = 'consul.exe'
       $binary_owner = 'NT AUTHORITY\NETWORK SERVICE'
+      $config_defaults  = {
+        data_dir => 'C:\\ProgramData\\consul'
+      }
       $manage_user = false
       $manage_group = false
       $user = 'NT AUTHORITY\NETWORK SERVICE'
@@ -70,10 +44,13 @@ class consul::params {
     default: {
       # 0 instead of root because OS X uses "wheel".
       $data_dir_mode = '0755'
-      $binary_group = 0
+      $binary_group = '0'
       $binary_mode = '0555'
       $binary_name = 'consul'
       $binary_owner = 'root'
+      $config_defaults  = {
+        data_dir => '/opt/consul'
+      }
       $manage_user = true
       $manage_group = true
       $user = 'consul'
